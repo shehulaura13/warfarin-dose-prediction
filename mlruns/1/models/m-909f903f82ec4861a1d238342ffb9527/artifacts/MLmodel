@@ -1,0 +1,22 @@
+artifact_path: file:C:/Users/USER/Desktop/Warfarin_IWPC_project/mlruns/1/models/m-909f903f82ec4861a1d238342ffb9527/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.14.3
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.10.1
+model_id: m-909f903f82ec4861a1d238342ffb9527
+model_size_bytes: 317803
+model_uuid: m-909f903f82ec4861a1d238342ffb9527
+prompts: null
+utc_time_created: '2026-04-19 16:23:28.935652'
