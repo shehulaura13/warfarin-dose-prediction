@@ -79,6 +79,8 @@ class DoseResponse(BaseModel):
     relative_uncertainty: float
     confidence: Literal["low", "medium", "high"]
     confidence_score: float = Field(..., ge=0, le=1)
+    method: Optional[str] = None
+    reason: Optional[str] = None
     flags: List[str]
     actions: List[str]
     clinical_summary: Optional[str] = None

@@ -29,6 +29,58 @@ def compute_uncertainty_xgb(model, X_row_trans, n_boot=30):
     rel_unc = std_pred / mean_pred if mean_pred > 1e-6 else 0
     return float(mean_pred), float(std_pred), float(rel_unc)
 
+CRITICAL_POOR_METABOLIZERS = ["*3/*3"]
+
+def check_cpic_hard_gate(patient_dict):
+   
+    cyp = str(patient_dict.get("cyp2c9_genotypes", "")).replace(" ", "")
+    age = patient_dict.get("age", "")
+    is_elderly = age in ["70-79", "80-89", "90+"]
+    on_amiodarone = patient_dict.get("amiodarone", 0) == 1
+
+    if cyp in CRITICAL_POOR_METABOLIZERS:
+       
+        if is_elderly and on_amiodarone:
+            dose_cap = 15.0  # CPIC: <15mg/week for this combo
+            reason = "CRITICAL: Elderly + CYP2C9*3/*3 + Amiodarone. CPIC max <15mg/week. ML disabled."
+        else:
+            dose_cap = 20.0  # CPIC: 20mg/week max for *3/*3 alone
+            reason = "CYP2C9 *3/*3: N=4 in validation, 75% error rate. ML disabled per CPIC."
+
+            
+
+        return {
+         "dose_mg_per_week": dose_cap,
+         "raw_model_dose": 0.0,
+
+         "uncertainty_std": 0.0,
+         "relative_uncertainty": 1.0,
+
+         "confidence": "low",
+         "confidence_score": 0.0,
+
+         "method": "CPIC_override_hard_gate",
+         "reason": reason,
+
+         "flags": [
+            "cpic_hard_gate"
+         ],
+
+         "actions": [
+           f"CPIC max {dose_cap}mg/week enforced",
+           "ML prediction blocked"
+         ],
+
+          "clinical_summary":
+           f"CPIC override: {cyp}. "
+           f"Max dose {dose_cap}mg/week.",
+
+          "shap_explanations": None
+    }
+
+
+    return None
+
 
 
 def detect_ood_and_risks(X_row, thresholds, std, dose, patient_dict):
@@ -37,27 +89,31 @@ def detect_ood_and_risks(X_row, thresholds, std, dose, patient_dict):
     actions = []
 
     bmi = X_row["bmi"].values[0]
-    
-    age = X_row["age_decade"].values[0]
+    age_decade = X_row["age_decade"].values[0]
+    elder_patients = age_decade > 7.0
     weight = X_row["weight_kg"].values[0]
     height = X_row["height_cm"].values[0] 
+    cyp = str(patient_dict.get("cyp2c9_genotypes", ""))
+    on_amiodarone = patient_dict.get("amiodarone", 0) == 1
 
     # === IMPOSSIBLE PATIENT TEST ===
    
     if weight < 25 or weight > 250:
         flags.append("impossible_weight")
         actions.append("Weight outside human range")
-    
 
-    # === CONTRAINDICATED COMBO
-    is_elderly = age >= 8 #age decade
-    is_slow_metabolizer = "*3/*3" in str(patient_dict.get("cyp2c9_genotypes", ""))
-    on_amiodarone = patient_dict.get("amiodarone", 0) == 1
 
-    if is_elderly and is_slow_metabolizer and on_amiodarone:
-        flags.append("contraindicated_combo")
-        actions.append("CRITICAL: Elderly + CYP2C9*3/*3 + amiodarone. Start <15mg/week, check INR day 3")
+    # SOFT WARNING for intermediate metabolizers 
+    if cyp in ["*2/*2", "*2/*3", "*1/*3"]:
+        flags.append("intermediate_metabolizer")
+        actions.append("CYP2C9 variant: Consider 10-25% dose reduction vs normal. Monitor INR closely.")
 
+    # CONTRAINDICATED COMBO: 
+   
+    if elder_patients and cyp in ["*2/*3", "*2/*2", "*1/*3"] and on_amiodarone:
+        flags.append("contraindicated_combo_warning")
+        actions.append("WARNING: Elderly + CYP2C9 variant + amiodarone. High bleed risk. Start low, check INR day 3.")
+   
     
     # === MISSING GENETICS ===
     vkorc1 = patient_dict.get("vkorc1_1639")
@@ -67,11 +123,8 @@ def detect_ood_and_risks(X_row, thresholds, std, dose, patient_dict):
        flags.append("missing_genetics")
        actions.append("Genotype patient before dosing")
 
-    if is_slow_metabolizer:
-        flags.append("poor_metabolizer")
-        actions.append("Dose Range:3,5-14mg/week.CPIC Overide.MD review,INR at day 3")
+   
 
-    
     if vkorc1 == "GG":
        flags.append("vkorc1_gg_high_error")  
        actions.append("VKORC1 GG genotype: Warfarin resistant. Model MAE=12.3mg on this group. Recommend INR on days 3, 7, 14.")
@@ -87,7 +140,7 @@ def detect_ood_and_risks(X_row, thresholds, std, dose, patient_dict):
     
     
 
-    if age > thresholds["age_high"]:
+    if age_decade > thresholds["age_high"]:
         flags.append("elderly_high_risk")
         actions.append("Elderly: consider dose reduction & frequent INR")
 
@@ -155,12 +208,24 @@ def build_api_response(pipeline, X_row_df,thresholds, patient_dict, clinical_max
     if dose > safe_cap:
         flags.append("dose_capped")
         actions.append(f"Dose capped at {safe_cap:.1f} mg/week for safety")
+    
+    CPIC_MAX = {
+    "*1/*3": 35.0,
+    "*2/*2": 30.0,
+    "*2/*3": 30.0
+}
+
+    cyp = patient_dict.get("cyp2c9_genotypes", "")
+    if cyp in CPIC_MAX and dose > CPIC_MAX[cyp]:
+       flags.append("cpic_max_exceeded")
+       actions.append(f"ML dose {dose:.1f}mg exceeds CPIC typical max {CPIC_MAX[cyp]}mg for {cyp}. Clinician review required.")
+
 
 
     explanations, clinical_summary = generate_clinical_explanations(pipeline, X_row_df)
 
    
-    if "high_uncertainty" in flags or "missing_genetics" in flags or "contraindicated_combo" in flags or "is_slow_metabolizer":
+    if "high_uncertainty" in flags or "missing_genetics" in flags or "contraindicated_combo" in flags :
         confidence = "low"
     elif "extreme_BMI" in flags or "elderly_high_risk" in flags or "vkorc1_gg_high_error" in flags or "obese_bmi" in flags:
         confidence = "medium"
