@@ -1,4 +1,4 @@
- 📊 Subgroup Analysis
+ 📊 Subgroup Analysis(v1.2.0)
 
 ### Dose Category Performance
 
@@ -30,15 +30,15 @@ This bias is likely driven by missing or incomplete genetic information, leading
 
 | Group | N | MAE | Within-20% |
 |------|----|-----|------------|
-| Overall | 1106 | 9.45 | 42.9% |
-| Age ≥80 | 133 | 6.71 | 48.1% |
-| CYP2C9 *3/*3 | 4 | 6.75 | 25.0% |
-| CYP2C9 *1/*1 | 821 | 9.84 | 43.6% |
-| BMI 30–40 | 186 | 11.25 | 47.8% |
-| Amiodarone | 86 | 7.84 | 48.8% |
-| VKORC1 AA | 294 | 5.95 | 43.9% |
-| VKORC1 UNKNOWN | 310 | 11.12 | 35.8% |
-| VKORC1 GG | 239 | 12.33 | 46.0% |
+| Overall | 1106 | 9.64 | 41.8% |
+| Age ≥80 | 133 | 7.01 | 47.4% |
+| CYP2C9 *3/*3 | 4 | 10.44 | 25.0% |
+| CYP2C9 *1/*1 | 821 | 9.97 | 43.7% |
+| BMI 30–40 | 186 | 11.93 | 44.1 |
+| Amiodarone | 86 | 8.86 | 44.2% |
+| VKORC1 AA | 294 | 6.06 | 42.9% |
+| VKORC1 UNKNOWN | 310 | 11.35 | 34.2% |
+| VKORC1 GG | 239 | 12.45 | 47.3% |
 
 ---
 
@@ -75,7 +75,6 @@ Genotype frequencies vary significantly across populations:
 - VKORC1 GG is more common in Black and White populations → associated with higher doses 
 - **CYP2C9 1/1 dominates across all groups 
 
-Conclusion: 
-Observed SHAP patterns are consistent with known population-level pharmacogenetic distributions.
+
 
 

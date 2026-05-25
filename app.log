@@ -1,0 +1,8 @@
+INFO:src.api.main:Loading Warfarin SaMD v1.2.0
+INFO:src.api.main:Loaded model + 33 features
+INFO:src.api.main:Loaded conformal q90=2.931
+INFO:src.api.main:Loading Warfarin SaMD v1.2.0
+INFO:src.api.main:Loaded model + 33 features
+INFO:src.api.main:Loaded conformal q90=2.859
+INFO:src.api.main:Prediction request | age=70-79 | cyp=*1/*1
+INFO:src.api.main:Prediction complete | dose=28.85 | refused=False

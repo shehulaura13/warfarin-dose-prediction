@@ -1,33 +1,9 @@
 import numpy as np
-import pandas as pd
 import shap
-import xgboost
+from src.core.uncertainty import predict_uncertainty,get_conformal_interval
 
-def compute_uncertainty_xgb(model, X_row_trans, n_boot=30):
-   
-    # XGBoost
-    if hasattr(model, "get_booster"):
-        booster = model.get_booster()
-        preds = []
-        n_trees = model.n_estimators
-        for _ in range(n_boot):
-            # Predict with random 80% of trees each time
-            end_tree = int(n_trees * np.random.uniform(0.7, 1.0))
-            pred = booster.predict(xgboost.DMatrix(X_row_trans), iteration_range=(0, end_tree))
-            preds.append(pred[0])
-        preds = np.array(preds)
 
-    # RandomForest fallback
-    elif hasattr(model, "estimators_"):
-        preds = np.array([t.predict(X_row_trans)[0] for t in model.estimators_])
 
-    else: # no uncertainty possible
-        preds = np.array([model.predict(X_row_trans)[0]])
-
-    mean_pred = preds.mean()
-    std_pred = preds.std()
-    rel_unc = std_pred / mean_pred if mean_pred > 1e-6 else 0
-    return float(mean_pred), float(std_pred), float(rel_unc)
 
 CRITICAL_POOR_METABOLIZERS = ["*3/*3"]
 
@@ -96,12 +72,7 @@ def detect_ood_and_risks(X_row, thresholds, std, dose, patient_dict):
     cyp = str(patient_dict.get("cyp2c9_genotypes", ""))
     on_amiodarone = patient_dict.get("amiodarone", 0) == 1
 
-    # === IMPOSSIBLE PATIENT TEST ===
-   
-    if weight < 25 or weight > 250:
-        flags.append("impossible_weight")
-        actions.append("Weight outside human range")
-
+    
 
     # SOFT WARNING for intermediate metabolizers 
     if cyp in ["*2/*2", "*2/*3", "*1/*3"]:
@@ -177,10 +148,10 @@ def generate_clinical_explanations(pipeline, X_row_df, top_n=5):
 
     for i in sorted_idx:
         feat = feature_names[i]
-        shap_val = values[i]
+        shap_val = round(values[i],2)
 
         raw_feat_name = feat.split('__')[-1]
-        raw_val = raw_data.get(raw_feat_name, data[i]) # fallback to transformed
+        raw_val = raw_data.get(raw_feat_name, data[i]) 
 
         explanations[feat] = float(shap_val)
         direction = "increases" if shap_val > 0 else "decreases"
@@ -189,15 +160,25 @@ def generate_clinical_explanations(pipeline, X_row_df, top_n=5):
     clinical_summary = " | ".join(sentences)
     return explanations, clinical_summary
 
-def build_api_response(pipeline, X_row_df,thresholds, patient_dict, clinical_max_dose=70):
+def build_api_response(pipeline,uncertainty_model, X_row_df,thresholds, patient_dict,q90, clinical_max_dose=70):
    
     model = pipeline.named_steps['model']
     preprocessor = pipeline.named_steps['preprocessor']
     X_row_trans = preprocessor.transform(X_row_df)
+    dose = float(pipeline.predict(X_row_df)[0])
 
-   
-    dose, std, rel_unc = compute_uncertainty_xgb(model, X_row_trans)
 
+ 
+
+    std = predict_uncertainty(
+    uncertainty_model,
+    X_row_df)
+
+    rel_unc = (
+    std / dose
+    if dose > 1e-6
+    else 0.0)
+  
    
     flags, actions = detect_ood_and_risks(X_row_df, thresholds, std, dose, patient_dict)
 
@@ -239,6 +220,25 @@ def build_api_response(pipeline, X_row_df,thresholds, patient_dict, clinical_max
         conf_score = 0.6
     else:
         conf_score = 0.3
+    
+
+    lower_pi, upper_pi, refused = get_conformal_interval(dose_capped, std, q90)
+
+    if refused:
+        return {
+            "dose_mg_per_week": 0.0,
+            "raw_model_dose": round(float(dose), 2),
+            "uncertainty_std": round(float(std), 2),
+            "relative_uncertainty": round(float(std), 3),
+            "prediction_interval": None,
+            "refused": True,
+            "confidence": "low",
+            "confidence_score": 0.0,
+            "flags": flags + ["uncertainty_too_high"],
+            "actions": actions + ["Prediction refused: PI width >20mg/week"],
+        }
+
+   
    
 
     return {
@@ -246,6 +246,8 @@ def build_api_response(pipeline, X_row_df,thresholds, patient_dict, clinical_max
         "raw_model_dose": round(float(dose), 2),
         "uncertainty_std": round(float(std), 2),
         "relative_uncertainty": round(float(rel_unc), 3),
+        "prediction_interval": {"lower": lower_pi, "upper": upper_pi, "coverage": 0.90},
+        "refused": False,
         "confidence": confidence,
         "confidence_score": conf_score,
         "flags": flags,

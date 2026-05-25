@@ -71,12 +71,29 @@ class PatientRequest(BaseModel):
             raise ValueError(f"BMI{self.bmi} physiologically impossible")
         return self
 
+
+class PredictionInterval(BaseModel):
+    lower: float
+    upper : float
+    coverage : float = 0.90
+
+class HealthResponse(BaseModel):
+
+    status: str
+
+    version: str
+
+    model_loaded: bool
+
+    conformal_loaded: bool    
        
 class DoseResponse(BaseModel):
     dose_mg_per_week: float
     raw_model_dose: float
     uncertainty_std: float
     relative_uncertainty: float
+    prediction_interval : Optional[PredictionInterval] = None
+    refused : bool = False
     confidence: Literal["low", "medium", "high"]
     confidence_score: float = Field(..., ge=0, le=1)
     method: Optional[str] = None

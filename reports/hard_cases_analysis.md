@@ -8,8 +8,8 @@ Hard cases are defined as the top 20% of patients with the highest absolute pred
 
 ### Performance
 
-- Overall MAE: 9.44 mg/week 
-- Hard-case MAE: 24.46 mg/week
+- Overall MAE: 9.64 mg/week 
+- Hard-case MAE: 24.72mg/week
 
 This represents a substantial degradation in predictive accuracy.
 
@@ -34,10 +34,10 @@ Anthropometric variables disproportionately contribute to prediction error in di
 
 | VKORC1 | Hard (%) | Easy (%) | Difference |
 |--------|---------|---------|-----------|
-| UNKNOWN | 41.4 | 24.6 | +16.8 |
-| GG | 31.9 | 19.0 | +12.9 |
+| UNKNOWN | 42.3 | 24.4 | +17.9 |
+| GG | 31.5 | 19.1 | +12.4 |
 | AG | 19.8 | 24.7 | -4.9 |
-| AA | 6.8 | 31.6 | -24.8 |
+| AA | 6.3 | 31.6 | -25.3 |
 
 ---
 
@@ -59,13 +59,9 @@ The model struggles when:
 - Patients exhibit resistance phenotypes 
 - Anthropometric signals dominate genetic signals 
 
+
 ---
+Conclusion
 
-### Feature Engineering Attempt
-
-Additional interaction features (e.g., weight × VKORC1 UNKNOWN) were introduced to address error patterns.
-
-Result: 
-Model performance deteriorated, indicating overfitting or noise amplification.
-
-These features were subsequently remove
+- Model tends to predict VKORC1 UNKNOWN genotype as VKORC1 GG  Warfarin resistant type in hard cases
+- Model tends to overpredict low dosed patients and underpredict high dosed patients,confirming model overall biased behaviour towards mean

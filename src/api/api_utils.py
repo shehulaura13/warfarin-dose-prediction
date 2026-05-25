@@ -2,16 +2,16 @@ import os
 import joblib
 import pandas as pd
 
-from src.core.config import (
+from src.utils.config import (
     MODEL_PATH,
     FEATURES_PATH,
-    MODEL_DIR
+    THRESHOLDS_PATH
 )
 
-from src.features import create_features
+from src.core.features import create_features
 
 
-def load_artifacts():
+def load_artifacts(force_reload=False):
   
 
     if not os.path.exists(MODEL_PATH):
@@ -39,7 +39,7 @@ def load_artifacts():
         "weight_high": 250
     }
 
-    train_data_path = MODEL_DIR / "train_data_for_thresholds.joblib"
+    train_data_path = THRESHOLDS_PATH
 
     if os.path.exists(train_data_path):
         try:
@@ -160,8 +160,65 @@ def model_predict(
     return prediction, X_row_df
 
 
-def save_model(model_obj, path):
-    
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    joblib.dump(model_obj, path)
+def normalize_patient(patient: dict):
+
+  
+
+    return {
+
+        **patient,
+
+      
+
+        "cyp2c9":
+
+            patient.get("cyp2c9", "")
+
+            or
+
+            patient.get(
+                "cyp2c9_genotypes",
+                ""
+            ),
+
+        "cyp2c9_genotypes":
+
+            patient.get(
+                "cyp2c9_genotypes",
+                ""
+            )
+
+            or
+
+            patient.get("cyp2c9", ""),
+
+   
+
+        "vkorc1":
+
+            patient.get("vkorc1", "")
+
+            or
+
+            patient.get(
+                "vkorc1_1639",
+                ""
+            ),
+
+        "vkorc1_1639":
+
+            patient.get(
+                "vkorc1_1639",
+                ""
+            )
+
+            or
+
+            patient.get("vkorc1", "")
+    }
+
+
+
+
+
 

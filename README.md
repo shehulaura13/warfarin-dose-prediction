@@ -1,203 +1,321 @@
- Warfarin Dose Prediction – Clinical AI System
+# Warfarin Dose Prediction – Clinical AI System
 
-End-to-end clinical machine learning system for personalized warfarin dosing, integrating pharmacogenomics, explainability, and production-ready deployment via FastAPI.
+Clinical machine learning system for personalized warfarin dosing using pharmacogenomics, explainability, uncertainty estimation, and conformal prediction.
 
-Performance: 21% MAE reduction vs IWPC clinical algorithm 
-Status: Research prototype (not for clinical use)
+Research prototype only — NOT for clinical use.
 
 ---
+
+## Current Performance (v1.2.0)
+
+| Metric | IWPC Clinical | XGBoost |
+|---|---|---|
+| MAE (mg/week) | 11.97 | 9.64 |
+| Within-20% Accuracy | 16.3% | 41.8% |
+| High-Risk MAE | 10.85 | 7.81 |
+| Conformal Coverage | - | 92.1% |
+| Refusal Rate | - | 13.1% |
+
+---
+
+## Key Features
+
+- XGBoost dose prediction
+- Pharmacogenomic modeling (VKORC1, CYP2C9)
+- SHAP explainability
+- Residual uncertainty estimation
+- Conformal prediction intervals
+- Prediction refusal system
+- FastAPI deployment
+- CPIC-inspired safety overrides
+- Clinical safety flags
+- Out-of-distribution detection
+
+---
+
+## System Architecture
+
+![Architecture](screenshots/architecture.png)
+
+Pipeline:
+
+Clinical Input → FastAPI Validation → Feature Engineering → XGBoost Dose Prediction → Residual Uncertainty Model → Conformal Calibration → Safety Rules → JSON Response
+
+---
+
+## Example Prediction
+
+### Request
+
+```json
+{
+  "gender": "male",
+  "race": "white",
+  "age": "50-59",
+  "weight_kg": 60,
+  "height_cm": 161,
+  "vkorc1": "AA",
+  "cyp2c9": "*1/*1",
+  "amiodarone": 0,
+  "aspirin": 0,
+  "rifampin": 0,
+  "diabetes": 0,
+  "hypertension": 0,
+  "comorbidities": "'heart_failure'",
+  "medications": "'simvastatin'"
+ 
+}
+Response:
+{
+
+"dose_mg_per week": 31.96,
+
+"raw model_dose": 31.96,
+
+"uncertainty_std": 5.76,
+
+"relative_uncertainty": 0.18,
+
+"prediction_interval": {
+
+"lower": 15.7,
+
+"upper": 48.2,
+
+"coverage": 0.9
+
+},
+
+"refused": false,
+
+"confidence": "high"
+
+"confidence_score": 0.9,
+
+"method": null,
+
+"reason": null,
+
+"flags": [],
+
+"actions": [],
+
+"clinical_summary": "weight_kg=60.0 decreases dose by 3.8 mg/ vkorc1_GG=0.0 decreases dose by 1.7mg"
+
+"shap_explanations": (
+
+"num_weight_kg": -3.77,
+
+"gen_vkorc1_AA": 2.38,
+
+"num_age_decade":2.27,
+
+vkorc1_GG*: -1.65,
+
+"num_cyp2c9": 1.33)
+
+}
+
+
+Conformal Prediction
+
+Version 1.2.0 introduced:
+
+residual uncertainty modeling
+conformal calibration
+prediction intervals
+refusal logic
+Calibration results:
+
+
+Metric
+
+Value
+
+q90
+
+2.931
+
+Coverage
+
+92.1%
+
+Refusal Rate
+
+13.1%
+
+Median PI Width
+
+36.1 mg/week
+
+
+High-dose patients demonstrated:
+
+wider intervals
+larger uncertainty
+increased refusal frequency
+This aligned with subgroup instability and hard-case analysis.
+
+See:
+
+CONFORMAL.md
+PREDICTION_INTERVAL_DRIFT.md
+
+
+Main Findings
+
+Weight and BMI were dominant drivers of prediction error
+Missing VKORC1 strongly increased uncertainty
+High-dose patients (>49 mg/week) were hardest to predict
+Rare CYP2C9 genotypes remained underrepresented
+Uncertainty intervals widened appropriately in difficult patients
+
+
+Safety Features
+
+CPIC-inspired genotype overrides
+Dose capping
+Prediction refusal
+Missing-genetics warnings
+Confidence scoring
+SHAP explanations
+Input validation
+See:
+
+CPIC_OVERRIDE.md
+LIMITATIONS.md
+MODEL_CARD.md
+
+REPOSITORY STRUCTURE
+
+WARFARIN_IWPC_PROJECT/
+├── .gitignore
+├── CHANGELOG.md
+├── Dockerfile
+├── LICENSE
+├── README.md
+├
+├── data/
+│    ├── processed_data
+│    ├── raw_data
+│    
+├── docs/
+│   ├── CONFORMAL.md
+│   ├── CPIC_OVERRIDE.md
+│   ├── LIMITATIONS.md
+│   ├── MODEL_CARD.md
+│   ├── PREDICTION_INTERVAL_DRIFT.md
+│   ├── VALIDATION_PLAN.md
+│
+├── figures/
+│   ├── v1.0.0/
+│   ├── v1.1.0/
+│   └── v1.2.0/
+│
+│
+├── models/
+│   ├── v1.0.0/
+│   ├── v1.1.0/
+│   └── v1.2.0/
+│
+│
+├── notebooks/
+│
+├── reports/
+    ├── clinical_report.txt
+│   ├── clinical_validation_report.txt
+│   ├──  hard_cases_analysis.md
+│   ├── shap_analysis.md
+│   └── subgroup_analysis.md
+│──requirements.txt
+├── results/
+│   ├── v1.0.0/
+│   ├── v1.1.0/
+│   └── v1.2.0/
+│
+├── screenshots/
+├── scripts/
+│   ├── evaluate_conformal.py
+│   ├── run_api.py
+│   └── train.py
+│
+├── src/
+│   ├── api/
+│   │   ├── api_utils.py
+│   │   ├── main.py
+│   │   ├── schemas.py
+│   │   └── validation.py
+│   │
+│   ├── core/
+        ├── analysis/
+│   │   ├── data_cleaning.py
+│   │   ├── data_loading.py
+│   │   ├── data_splitting.py
+│   │   ├── evaluations.py
+│   │   ├── explainibility.py
+│   │   ├── features.py
+│   │   ├── modeling.py
+│   │   ├── preprocess.py
+│   │   ├── uncertainty.py
+│   │   └── visualizations.py
+│   │
+│   └── utils/
+│       ├── config.py
+│       └── utils.py
+└── setup.py
+│
+└── tests/
+
+Run Locally
+pip install -r requirements.txt
+python -m scripts.run_api
+Swagger Docs
+http://127.0.0.1:8000/docs
+Run with Docker
+docker build -t warfarin-api .
+docker run -p 8000:8000 warfarin-api
+Swagger Docs
+http://localhost:8000/docs
+
+Documentation
+
+MODEL_CARD.md
+CONFORMAL.md
+LIMITATIONS.md
+VALIDATION_PLAN.md
+CPIC_OVERRIDE.md
+PREDICTION_INTERVAL_DRIFT.md
+CHANGELOG.md
+REPORTS
+
 
 Disclaimer
-This system is intended for research and educational purposes only. 
-Not approved for clinical use. Requires prospective validation before deployment in healthcare settings.
 
----
+Research prototype only.
 
-Clinical Impact
+NOT:
 
-| Metric | IWPC Clinical | XGBoost Model | Improvement |
-|--------|-------------|--------------|------------|
-| MAE (mg/week) | 11.97 | 9.44 | -21.1% |
-| Within-20% Accuracy | 16.2% | 42.8% | +62.1% |
-| High-Risk MAE (age ≥70 or amiodarone) | 10.85 | 7.21 | -33.5% |
-| Hard Cases MAE (top 20% errors) | 25.22 | 24.46 | ~no improvement |
+FDA approved
+CE marked
+validated for patient care
+Requires prospective clinical validation before deployment.
 
----
 
-Critical Findings
 
-- Model performance is highly sensitive to rare genotypes
-- Inclusion of CYP2C9 *3/*3 patients increases MAE:
-  - 8.66 → 9.44
-- Indicates poor generalization to underrepresented pharmacogenetic profiles
+Version History
 
-Conclusion: 
-The model outperforms IWPC overall, but performance degrades in rare and high-risk cases, which are clinically critical.
+v1.2.0
 
----
+Added conformal prediction
+Added residual uncertainty model
+Added prediction refusal logic
+Added drift monitoring documentation
+v1.1.0
 
-Dataset
+Added CPIC safety overrides
+Added limitations/governance documentation
+v1.0.0
 
-- Source: IWPC (International Warfarin Pharmacogenetics Consortium)
-- Size: ~5000 patients 
-- Test set: ~1100 patients 
-- Target: Stable therapeutic weekly dose
-
-Key Data Challenges
-- Missing VKORC1 and CYP2C9 genotypes 
-- Severe imbalance in rare variants (*3/*3) 
-- Limited representation of drug interactions 
-
----
-
-Feature Engineering
-
-Clinical Features
-- Age → encoded as decades 
-- Weight, height → BMI 
-- Race 
-- Comorbidities (CHF, diabetes, hypertension, valve replacement)
-
-Pharmacogenomics
-- VKORC1 (-1639 G>A):
-  - AA → sensitive (low dose)
-  - AG → intermediate
-  - GG → resistant (high dose)
-  - UNKNOWN → treated as category
-
-- CYP2C9 Activity Score:
-  - *1/*1 → 2.0 (normal metabolism)
-  - *3/*3 → 0.0 (poor metabolism)
-
-Medications
-- Amiodarone (strong inhibitor → ↓ dose)
-- Carbamazepine (inducer → ↑ dose)
-- Azoles, aspirin (limited representation)
-
----
-
-Models
-
-- IWPC Clinical Algorithm (baseline)
-- Linear Regression
-- Random Forest
-- XGBoost (selected)
-
-Training Strategy
-- GroupShuffleSplit → prevents patient leakage 
-- Hyperparameter tuning 
-- Feature selection based on clinical relevance 
-
----
-
-Explainability (SHAP)
-
-Key Drivers of Dose
-
-- VKORC1 AA → strong dose reduction
-- CYP2C9 variants → reduced metabolism → lower dose
-- Age → older patients require lower dose
-- Weight → higher weight → higher dose
-- Amiodarone → decreases dose
-
-Clinical Validation
-Model behavior aligns with known pharmacogenetic mechanisms and CPIC guidelines:
-- VKORC1 affects warfarin sensitivity 
-- CYP2C9 affects drug metabolism 
-
----
-
-Failure Analysis
-
-Hard Cases (Top 20% Errors)
-- MAE: 24.46 vs 9.44 overall
-
-Main Drivers of Error
-- Weight / BMI (dominant)
-- Missing VKORC1 genotype
-- Resistant patients (VKORC1 GG)
-
-Insight: 
-Anthropometric features dominate error in difficult cases, suggesting missing biological or lifestyle variables.
-
----
-
-Subgroup Insights
-
-High-Dose Patients (>49 mg/week)
-- Frequently underpredicted
-- Enriched with:
-  - CYP2C9 *1/*1
-  - VKORC1 GG / UNKNOWN
-
-Cause: Missing genetic data → systematic underestimation bias
-
-High-Error Groups
-- BMI 30–40
-- VKORC1 GG
-- VKORC1 UNKNOWN
-
----
-
-System Architecture
-
-Clinical Input → FastAPI Validation → Feature Engineering → 
-Sklearn Pipeline (Preprocessing + XGBoost) → 
-Post-processing (uncertainty, flags, SHAP) → JSON Output
-
----
-
-Safety & Reliability
-
-- Uncertainty estimation (tree dropout)
-- Out-of-distribution detection
-- Clinical flags (high-risk patients)
-- Dose caps for missing genetics
-
----
-
-API Example
-
-Request
-json {   "age": "80-89",   "race": "White",   "weight_kg": 75,   "height_cm": 170,   "vkorc1": "AG",   "cyp2c9": "*1/*2",   "amiodarone": 1 }
-
-Response
-json {   "dose_mg_per_week": 24.5,   "uncertainty_std": 3.2,   "confidence": "medium",   "flags": ["elderly_high_risk"],   "clinical_summary": "...",   "shap_explanations": {...} }
-
----
-
-Evaluation
-
-- MAE 
-- Within-20% accuracy 
-- Dose category accuracy 
-- Subgroup analysis 
-- Hard-case analysis 
-
----
-
-Limitations
-
-- Missing genetic data (VKORC1, CYP2C9)
-- Poor representation of rare genotypes
-- Dataset bias (European ancestry dominance)
-- No INR feedback loop (static prediction)
-- Limited drug interaction data
-
----
-
-Future Work
-
-- Conformal prediction (uncertainty calibration)
-- External validation (UK Biobank, eMERGE)
-- EHR integration (FHIR / Epic / Cerner)
-- Drift monitoring
-- Causal inference (drug effects)
-
----
-
-Author
-
-LAURA SHEHAJ 
-Clinical AI / ML Engineer
-
+Initial XGBoost dosing system
+SHAP explainability
+FastAPI deployment
